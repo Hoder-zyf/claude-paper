@@ -321,7 +321,30 @@ Avoid generic names.
 
 ---
 
-# Step 5: Extract Images
+# Step 5: Generate Interactive HTML Explorer
+
+Create a single self-contained HTML file for interactively exploring the paper's core concepts.
+
+**Output path:**
+```
+~/claude-papers/papers/{paper-slug}/index.html
+```
+
+## Requirements
+
+* Single HTML file, all CSS/JS inline, zero external dependencies
+* Uses **real data from the paper** (actual metrics, hyperparameters, comparisons) — never invent numbers
+* Must work in a sandboxed iframe (no external fetches, no localStorage)
+
+## Guidelines
+
+Choose the interaction pattern that best fits the paper — architecture diagrams, parameter explorers, result dashboards, formula breakdowns, comparison matrices, etc. Let the paper's content dictate the format rather than forcing a fixed layout, focusing on the core ideas of the paper.
+
+Every interactive control (slider, toggle, dropdown) should visibly change the visualization. Include brief explanatory text alongside interactive elements to teach concepts.
+
+---
+
+# Step 6: Extract Images
 
 ```bash
 mkdir -p ~/claude-papers/papers/{paper-slug}/images
@@ -339,7 +362,7 @@ Rename key images descriptively:
 
 ---
 
-# Step 6: Update Index
+# Step 7: Update Index
 
 **CRITICAL**: Read existing index.json first, then append the new paper. Never overwrite the entire file.
 
@@ -373,7 +396,7 @@ Append new entry to the papers array:
 ---
 
 
-# Step 7: Relaunch Web UI
+# Step 8: Relaunch Web UI
 
 Invoke:
 
@@ -382,7 +405,7 @@ Invoke:
 ```
 
 
-# Step 8: Interactive Deep Learning Loop
+# Step 9: Interactive Deep Learning Loop
 
 After all files are generated:
 
