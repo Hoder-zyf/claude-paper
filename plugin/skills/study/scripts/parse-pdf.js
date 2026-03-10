@@ -45,8 +45,8 @@ if (!pdfPath) {
   const authorMatch = data.text.match(/^([A-Z][a-z]+ [A-Z][a-z]+(?:,\s*[A-Z][a-z]+ [A-Z][a-z]+)*)/m);
   const authors = authorMatch ? authorMatch[1].split(',').map(a => a.trim()) : [];
 
-  // Truncate content if too large (max 50000 chars to prevent token issues)
-  const MAX_CONTENT_LENGTH = 50000;
+  // Truncate content if too large (max 150000 chars ≈ 37k-50k tokens)
+  const MAX_CONTENT_LENGTH = 150000;
   const truncatedContent = data.text.length > MAX_CONTENT_LENGTH
     ? data.text.substring(0, MAX_CONTENT_LENGTH) + '... [content truncated]'
     : data.text;
