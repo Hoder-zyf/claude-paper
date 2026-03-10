@@ -221,31 +221,6 @@ Create folder:
 
 ---
 
-### qa.md
-
-15 questions:
-
-* 5 basic
-* 5 intermediate
-* 5 advanced
-
-Use this format:
-
-```markdown
-### Question
-
-<details>
-<summary>Answer</summary>
-
-Detailed explanation.
-
-</details>
-
----
-```
-
----
-
 ## Conditional Files
 
 ### method.md (Recommended for most papers)
