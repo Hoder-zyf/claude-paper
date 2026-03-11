@@ -7,10 +7,22 @@ if (!pdfPath) {
   process.exit(1);
 }
 
-// Wrap in async IIFE to handle async/await properly
+// Suppress pdf-parse internal warnings (e.g. "Warning: TT: undefined function")
+// that pollute stdout and break JSON parsing by callers
+const originalWarn = console.warn;
+const originalLog = console.log;
+
 (async () => {
+  // Mute console during PDF parsing to capture only our JSON output
+  console.warn = () => {};
+  console.log = () => {};
+
   const dataBuffer = fs.readFileSync(pdfPath);
   const data = await pdf(dataBuffer);
+
+  // Restore console after parsing
+  console.warn = originalWarn;
+  console.log = originalLog;
 
   // Extract title (first line of text)
   const lines = data.text.split('\n').filter(l => l.trim());

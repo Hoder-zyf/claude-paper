@@ -23,11 +23,24 @@ Facilitate deep conceptual understanding and research-level thinking.
 Secondary Objective:
 Create a structured, reusable paper knowledge system.
 
-This workflow is not just for summarizing — it builds a learning environment around the paper.
+**Grounding Rule**: For key technical content — contributions, method descriptions, core formulas, and experimental results — quote the relevant passage from the paper directly, then provide your interpretation. General background or high-level explanations do not need citations.
 
 ---
 
-# Step 0: Check Dependencies (First Run Only)
+# Step 0: Validate Plugin Root and Check Dependencies
+
+If `${CLAUDE_PLUGIN_ROOT}` does not contain the expected `skills/study/scripts/parse-pdf.js`, it may have been overridden by the current working directory (e.g. when running Claude Code inside the plugin's source repo). In that case, locate the actual plugin cache path:
+
+```bash
+if [ ! -f "${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/parse-pdf.js" ]; then
+  # Try to find the actual plugin cache path
+  CACHED=$(find ~/.claude/plugins/cache -path "*/claude-paper/*/skills/study/scripts/parse-pdf.js" 2>/dev/null | head -1)
+  if [ -n "$CACHED" ]; then
+    export CLAUDE_PLUGIN_ROOT="$(dirname "$(dirname "$(dirname "$(dirname "$CACHED")")")")"
+    echo "Corrected CLAUDE_PLUGIN_ROOT to: ${CLAUDE_PLUGIN_ROOT}"
+  fi
+fi
+```
 
 ```bash
 if [ ! -f "${CLAUDE_PLUGIN_ROOT}/.installed" ]; then
@@ -36,7 +49,7 @@ if [ ! -f "${CLAUDE_PLUGIN_ROOT}/.installed" ]; then
   npm install || exit 1
 
   # Install Python dependencies for image extraction
-  python3 -m pip install pymupdf --user 2>/dev/null || pip3 install pymupdf --user 2>/dev/null || echo "Warning: Failed to install pymupdf"
+  python3 -m pip install pymupdf --user --break-system-packages 2>/dev/null || pip3 install pymupdf --user --break-system-packages 2>/dev/null || echo "Warning: Failed to install pymupdf"
 
   touch "${CLAUDE_PLUGIN_ROOT}/.installed"
   echo "Dependencies installed!"
@@ -85,8 +98,11 @@ For local paths, use the path directly without downloading.
 
 Extract structured information:
 
+**NOTE**: `$CLAUDE_PLUGIN_ROOT` does not persist across separate Bash tool calls. Re-resolve the plugin root each time:
+
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/parse-pdf.js "$INPUT_PATH"
+PLUGIN_ROOT=$(find ~/.claude/plugins/cache -maxdepth 8 -name "parse-pdf.js" -path "*/claude-paper/*" 2>/dev/null | head -1 | sed 's|/skills/study/scripts/parse-pdf.js||')
+node "${PLUGIN_ROOT}/skills/study/scripts/parse-pdf.js" "$INPUT_PATH"
 ```
 
 Output includes:
@@ -97,7 +113,6 @@ Output includes:
 * full content
 * githubLinks
 * codeLinks
-* tags (generated in Step 2.5)
 
 Save to:
 
@@ -116,7 +131,27 @@ If structured parsing fails, extract raw text and continue with degraded structu
 
 ---
 
-# Step 2: Assess Paper Before Generating Materials
+# Step 2: Extract Images
+
+Extract images early so they can inform material generation.
+
+```bash
+mkdir -p ~/claude-papers/papers/{paper-slug}/images
+
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/extract-images.py \
+  ~/claude-papers/papers/{paper-slug}/paper.pdf \
+  ~/claude-papers/papers/{paper-slug}/images
+```
+
+Rename key images descriptively:
+
+* architecture.png
+* training_pipeline.png
+* results_table.png
+
+---
+
+# Step 3: Assess Paper Before Generating Materials
 
 Before generating any files, evaluate:
 
@@ -144,45 +179,58 @@ Before generating any files, evaluate:
 
 This assessment determines:
 
-* Whether to create method.md
-* Whether to create .ipynb
 * Explanation depth
+* Whether to generate code demos (skip for Survey / pure theory)
+* Whether to generate interactive HTML (only for architecture / empirical / system design)
 * Code demo complexity
 
 ---
 
-# Step 2.5: Generate Exactly 2 Semantic Tags (Mandatory)
+# Step 3.5: Generate 2-4 Semantic Tags (Mandatory)
 
-Before generating files, infer exactly 2 tags from semantic understanding of the paper.
+Before generating files, infer 2-4 tags from semantic understanding of the paper.
 
 Rules:
 
-* Generate exactly 2 tags, no more and no less
+* Generate between 2 and 4 tags
 * Tags must be distinct
 * Each tag should be short (1-3 words)
 * Avoid generic tags: `paper`, `research`, `ai`, `ml`
-* Prefer one tag for problem/domain and one for method/core idea
+* Prefer a mix of problem/domain tags and method/core idea tags
 
 Examples:
 
 * `machine translation`, `self-attention`
-* `3d detection`, `bev transformer`
-* `protein folding`, `structure prediction`
+* `3d detection`, `bev transformer`, `lidar fusion`
+* `protein folding`, `structure prediction`, `alphafold`
 
-Persist these 2 tags in both locations:
+Persist tags in both locations:
 
 * `~/claude-papers/papers/{paper-slug}/meta.json` as `tags`
 * `~/claude-papers/index.json` entry as `tags`
 
 ---
 
-# Step 3: Generate Core Study Materials
+# Step 4: Generate Core Study Materials
 
 Create folder:
 
 ```
 ~/claude-papers/papers/{paper-slug}/
 ```
+
+## Citation Rule (applies to method.md and key claims in summary.md)
+
+When describing contributions, method steps, core formulas, or experimental results, directly quote the relevant passage from the paper. Use this format:
+
+```markdown
+> "Exact quote from the paper goes here, copied verbatim from the parsed content."
+> — Section X.Y / Abstract / Conclusion
+
+**Interpretation**: Your explanation of what this means and why it matters.
+```
+
+General background explanations and high-level summaries do not require citations. But method.md should have at least 3-5 direct quotes, and summary.md should quote the paper's own contribution claims and key results.
 
 ---
 
@@ -201,71 +249,67 @@ Create folder:
 
 ### summary.md
 
-* Background context
-* Problem statement
-* Main contributions
-* Key results
-* Quantitative metrics
+Comprehensive overview with emphasis on contributions and background:
 
----
-
-### insights.md (Most Important)
-
-* Core idea explained plainly
-* Why this works
-* What conceptual shift it introduces
-* Trade-offs
-* Limitations
+* **Background context** — what problem exists, why it matters, what prior approaches lacked
+* **Contributions** — quote the paper's own contribution claims verbatim, then explain each in plain language
+* Core idea explained plainly — what conceptual shift it introduces
+* **Key results** with quantitative metrics (quote exact numbers from the paper)
+* Trade-offs and limitations
 * Comparison to prior work
-* Practical implications
 
 ---
 
-## Conditional Files
+### method.md
 
-### method.md (Recommended for most papers)
-
-Include:
+Detailed technical breakdown of the paper's approach:
 
 * Component breakdown
 * Algorithm flow
 * Architecture diagram (ASCII if needed)
-* Step-by-step explanation
+* Step-by-step explanation (quote key formulas and definitions from the paper)
 * Pseudocode (balanced with explanation)
 * Implementation pitfalls
-* Hyperparameter sensitivity
+* Hyperparameter sensitivity (quote reported values)
 * Reproduction risks
 
 ---
 
-### mental-model.md (Recommended for most papers)
+### reflection.md
 
-* What type of problem is this?
-* What prior knowledge is assumed?
-* How it fits into the broader research map
-* How to mentally categorize this work
+Focus on **what we can learn** from this paper — research context, takeaways, and forward-looking analysis:
 
----
-
-### reflection.md (Optional auto-generated)
-
-* If I were to extend this paper
+* **What can we learn from this paper** — key lessons, transferable ideas, methodological insights
+* What type of problem is this and how it fits the broader research landscape
+* What prior knowledge is assumed
+* What assumptions are fragile (distinguish between limitations the paper acknowledges vs. your own observations)
+* If you were to extend this paper, what would you do
 * What open problems remain
-* What assumptions are fragile
 * Where it might fail in practice
 
 ---
 
-# Step 4: Code Demonstrations (Mandatory)
+# Step 4.5: Double-Check Against Original Text
 
-At least one runnable demo must be created.
+After generating all materials, review each file against the parsed paper content:
 
-**All code demos must be placed in:**
+1. **Verify numbers**: Check that all metrics, percentages, and quantitative claims in summary.md match the paper exactly
+2. **Verify method accuracy**: Check that algorithm descriptions and formulas in method.md faithfully represent the paper's approach
+3. **Verify attribution**: Check that limitations in reflection.md clearly distinguish between what the paper itself states vs. your own analysis
+4. **Fix any discrepancies**: If you find misquotes, wrong numbers, or inaccurate descriptions, correct them immediately
+
+This step is mandatory — do not skip it.
+
+---
+
+# Step 5: Code Demonstrations (Conditional)
+
+**Skip this step** if the paper is a Survey, pure theoretical proof, or has no implementable method.
+
+If generating code demos, place them in:
 ```
 ~/claude-papers/papers/{paper-slug}/code/
 ```
-
-Create the code directory first:
 
 ```bash
 mkdir -p ~/claude-papers/papers/{paper-slug}/code
@@ -296,7 +340,9 @@ Avoid generic names.
 
 ---
 
-# Step 5: Generate Interactive HTML Explorer
+# Step 6: Generate Interactive HTML Explorer (Conditional)
+
+**Skip this step** unless the paper is architecture-based, empirical-heavy, system design, or has interactive/explorable data.
 
 Create a single self-contained HTML file for interactively exploring the paper's core concepts.
 
@@ -319,38 +365,21 @@ Every interactive control (slider, toggle, dropdown) should visibly change the v
 
 ---
 
-# Step 6: Extract Images
-
-```bash
-mkdir -p ~/claude-papers/papers/{paper-slug}/images
-
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/extract-images.py \
-  paper.pdf \
-  ~/claude-papers/papers/{paper-slug}/images
-```
-
-Rename key images descriptively:
-
-* architecture.png
-* training_pipeline.png
-* results_table.png
-
----
-
 # Step 7: Update Index
 
 **CRITICAL**: Read existing index.json first, then append the new paper. Never overwrite the entire file.
 
-If index.json does not exist, create:
+index.json is a **bare JSON array** (not an object). If it does not exist, initialize as `[]`.
 
-```json
-{"papers": []}
-```
+Use this Python template to read, deduplicate, and append:
 
-Append new entry to the papers array:
+```python
+import json, os
 
-```json
-{
+index_path = os.path.expanduser("~/claude-papers/index.json")
+papers = json.load(open(index_path)) if os.path.exists(index_path) else []
+
+new_entry = {
   "id": "paper-slug",
   "title": "Paper Title",
   "slug": "paper-slug",
@@ -362,6 +391,13 @@ Append new entry to the papers array:
   "githubLinks": ["https://github.com/..."],
   "codeLinks": ["https://..."]
 }
+
+# Deduplicate by id, then append
+papers = [p for p in papers if p.get('id') != new_entry['id']]
+papers.append(new_entry)
+
+with open(index_path, 'w') as f:
+    json.dump(papers, f, indent=2, ensure_ascii=False)
 ```
 **IMPORTANT**: The index.json file must be located at:
 ```
@@ -369,7 +405,6 @@ Append new entry to the papers array:
 ```
 
 ---
-
 
 # Step 8: Relaunch Web UI
 
@@ -379,6 +414,7 @@ Invoke:
 /claude-paper:webui
 ```
 
+---
 
 # Step 9: Interactive Deep Learning Loop
 
@@ -439,5 +475,3 @@ Create:
 ---
 
 This makes the paper folder a growing knowledge node.
-
----
