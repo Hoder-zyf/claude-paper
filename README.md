@@ -12,9 +12,22 @@
 
 A powerful **Claude Code plugin** that automates research paper study through intelligent material generation, code demonstrations, and an interactive web viewer.
 
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshot1.png" alt="Library View" width="100%"/>
+      <br/>
+      <sub>Library View - Browse and search your paper collection</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshot2.png" alt="Reading View" width="100%"/>
+      <br/>
+      <sub>Reading View - Study papers with rich formatting and math support</sub>
+    </td>
+  </tr>
+</table>
 
----
+</div>
 
 ## Features
 

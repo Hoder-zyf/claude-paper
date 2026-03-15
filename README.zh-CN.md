@@ -12,9 +12,22 @@
 
 一个强大的 **Claude Code 插件**，通过智能材料生成、代码演示和交互式网页查看器自动化研究论文学习。
 
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshot1.png" alt="图书馆界面" width="100%"/>
+      <br/>
+      <sub>图书馆界面 - 浏览和搜索您的论文收藏</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshot2.png" alt="阅读界面" width="100%"/>
+      <br/>
+      <sub>阅读界面 - 支持丰富格式和数学公式的论文学习</sub>
+    </td>
+  </tr>
+</table>
 
----
+</div>
 
 ## 功能特性
 
