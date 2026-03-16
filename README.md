@@ -2,7 +2,9 @@
 
 # Claude Paper
 
-**Transform research papers into comprehensive learning environments**
+### Inspired by and based on [alaliqing/claude-paper](https://github.com/alaliqing/claude-paper)
+
+**Turn papers into a reusable research knowledge system**
 
 [English](README.md) | [中文](README.zh-CN.md)
 
@@ -10,244 +12,253 @@
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-purple)](https://code.claude.com)
 
-A powerful **Claude Code plugin** that automates research paper study through intelligent material generation, code demonstrations, and an interactive web viewer.
+A customized **Claude Code plugin** for studying research papers with Chinese-first material generation, AlphaXiv-assisted understanding, a knowledge graph, a persistent knowledge base, and an interactive web reader.
 
 </div>
 
 ---
 
+## What This Fork Adds
+
+Compared with the original `claude-paper`, this repo is focused on a deeper research workflow:
+
+- **Chinese-first study output**: generated study materials default to Chinese unless the user explicitly asks for English.
+- **AlphaXiv integration**: for arXiv papers, the workflow fetches `alphaxiv.md` and cross-checks it with parsed PDF content.
+- **Cross-paper knowledge base**: each studied paper appends a linked note to `~/claude-papers/paper.md`.
+- **Semantic tags and graph view**: papers get 2-3 reusable tags, plus a graph view connecting papers by tags, authors, and related ideas.
+- **Editable web workspace**: edit generated files, preview HTML, save snippets to notes, and run local demo code directly from the web UI.
+
+---
+
 ## Features
 
-- **Automatic PDF parsing** - Extract title, authors, abstract, and full content
-- **Smart content truncation** - Handles large papers (50k char limit) intelligently
-- **Code repository detection** - Automatically finds GitHub, arXiv, CodeOcean links
-- **Adaptive learning materials** - Generates README, summary, insights, Q&A based on paper complexity
-- **Code demonstrations** - Clean implementations with Jupyter notebooks and original code integration
-- **Interactive web viewer** - Nuxt.js interface with math equation support (KaTeX)
-- **Intelligent assessment** - Difficulty levels and paper type detection for adaptive content generation
+- **Multiple input modes**: local PDFs, direct PDF URLs, arXiv URLs, multiple papers at once, or a directory of PDFs.
+- **Structured PDF parsing**: extracts title, authors, abstract, sections, references, code links, and full text.
+- **AlphaXiv augmentation**: supplements arXiv papers with machine-readable summaries from [AlphaXiv](https://www.alphaxiv.org/).
+- **Study material generation**: creates `README.md`, `summary.md`, `method.md`, `reflection.md`, and `user.md`.
+- **Figure extraction**: saves paper figures into an `images/` directory for downstream study materials.
+- **Code demos**: generates runnable examples in `code/` when a paper has an implementable method.
+- **Interactive explorer**: can generate a self-contained `index.html` for architecture-, system-, or experiment-heavy papers.
+- **Knowledge base updates**: appends a concise cross-paper note into the global `paper.md`.
+- **Rich web UI**: library view, reader view, knowledge graph, global notes page, tag editing, read/star status, delete, edit, and run.
 
 ---
 
 ## Quick Start
 
-### Installation
-
-Install from the Claude Code marketplace:
+### Install from Marketplace
 
 ```bash
-# Add the marketplace
-/plugin marketplace add alaliqing/claude-paper
-
-# Install the plugin
+/plugin marketplace add https://github.com/Hoder-zyf/claude-paper
 /plugin install claude-paper
-
-# Restart Claude Code for the plugin to take effect
+/reload-plugins
 ```
 
-**That's it!** The plugin will automatically:
-- Install all dependencies (pdf-parse for PDF processing)
-- Create the papers directory at `~/claude-papers/`
-- Initialize the search index
-- Install web viewer dependencies
+### Or Run This Repo Locally
+
+```bash
+cd /path/to/claude-paper
+claude --plugin-dir ./plugin
+```
 
 ### System Requirements
 
-- **Node.js**: 18.0.0 or higher
-- **npm**: Comes with Node.js
-- **Claude Code**: Latest version with plugin support
-- **poppler-utils**: For PDF image extraction (install via system package manager)
-  - **macOS**: `brew install poppler`
-  - **Ubuntu/Debian**: `sudo apt-get install poppler-utils`
-  - **Arch Linux**: `sudo pacman -S poppler`
+- **Node.js**: 18+
+- **npm**
+- **Claude Code** with plugin support
+- **Python 3**
+- **poppler-utils** for figure extraction
+  - macOS: `brew install poppler`
+  - Ubuntu/Debian: `sudo apt-get install poppler-utils`
+  - Arch Linux: `sudo pacman -S poppler`
+
+On first run, the plugin installs its own Node dependencies and initializes `~/claude-papers/`.
 
 ---
 
 ## Usage
 
-### Study a Research Paper
+### Study a Paper
 
-Simply talk to Claude Code to study a paper:
+Examples:
 
-```
-Help me study the paper at ~/Downloads/attention-is-all-you-need.pdf
-```
-
-You can also use URLs:
-
-```
-# Direct PDF URL
-Help me study the paper at https://arxiv.org/pdf/1706.03762.pdf
-
-# arXiv abstract URL (automatically converted to PDF)
-Help me study the paper at https://arxiv.org/abs/1706.03762
+```text
+Help me study ~/Downloads/attention-is-all-you-need.pdf
+Help me study https://arxiv.org/pdf/1706.03762.pdf
+Help me study https://arxiv.org/abs/1706.03762
+Help me study these two papers: <url-1> <url-2>
+Help me study all papers in ~/papers/
 ```
 
-Claude will automatically trigger the study workflow and:
-1. Parse the PDF and extract metadata
-2. Analyze paper complexity and type
-3. Generate adaptive learning materials
-4. Create code demonstrations (if applicable)
-5. Extract and include original code (if available)
-6. Extract key figures and images
-7. Update the global search index
-8. Launch the web viewer automatically
+You can also invoke the bundled slash command directly:
 
-### Launch Web Viewer
+```bash
+/claude-paper:study /path/to/paper.pdf
+```
+
+The workflow will:
+
+1. Resolve inputs and download PDFs when needed.
+2. Parse the paper and save `meta.json`.
+3. Fetch `alphaxiv.md` for arXiv papers when available.
+4. Extract figures into `images/`.
+5. Read and update the global knowledge base.
+6. Generate study materials and optional code demos.
+7. Update `~/claude-papers/index.json` and tag registry.
+8. Launch the web UI.
+
+### Launch the Web UI
 
 ```bash
 /claude-paper:webui
 ```
 
-Opens the interactive web interface at **http://localhost:5815** where you can:
-- Browse all studied papers
-- View generated materials with math rendering
-- Access code demonstrations and notebooks
-- Search through your paper library
+The viewer runs at [http://localhost:5815](http://localhost:5815).
 
 ---
 
-## Paper Storage Structure
+## Generated Paper Structure
 
-Papers are organized in `~/claude-papers/papers/{paper-slug}/`:
+Each paper lives under `~/claude-papers/papers/{paper-slug}/`:
 
-```
+```text
 ~/claude-papers/
-├── papers/
-│   └── {paper-slug}/
-│       ├── paper.pdf                     # Original PDF file
-│       ├── meta.json                     # Paper metadata (title, authors, etc.)
-│       ├── README.md                     # Quick navigation and overview
-│       ├── summary.md                    # Detailed summary
-│       ├── insights.md                   # Key insights (most important!)
-│       ├── method.md                     # Methodology (if complex)
-│       ├── mental-model.md              # Paper categorization (if needed)
-│       ├── reflection.md                # Future directions (if needed)
-│       ├── qa.md                         # Learning questions
-│       ├── index.html                    # Interactive HTML explorer
-│       ├── images/                       # Extracted figures and tables
-│       │   ├── fig1.png
-│       │   └── fig2.png
-│       └── code/                         # Code demonstrations
-│           ├── core-demo.py              # Clean reference implementation
-│           └── concept-demo.ipynb        # Interactive Jupyter notebook
-│
-└── index.json                           # Global search index
+├── index.json
+├── paper.md
+├── tags.json
+└── papers/
+    └── {paper-slug}/
+        ├── paper.pdf
+        ├── meta.json
+        ├── alphaxiv.md              # optional, for arXiv papers
+        ├── README.md
+        ├── summary.md
+        ├── method.md
+        ├── reflection.md
+        ├── user.md
+        ├── index.html               # optional interactive explorer
+        ├── images/
+        │   └── ...
+        └── code/
+            └── ...
 ```
+
+Global files:
+
+- `~/claude-papers/index.json`: searchable paper index used by the web UI.
+- `~/claude-papers/paper.md`: cross-paper knowledge base.
+- `~/claude-papers/tags.json`: canonical tag registry.
 
 ---
 
-## Architecture
+## Web UI
 
-### Plugin Structure
+The Nuxt-based web app includes:
 
-```
+- **Library**: browse, search, filter, sort, star, mark as read, retag, and delete papers.
+- **Paper Reader**: navigate all generated files for one paper.
+- **Knowledge Graph**: visualize links by shared tags, shared authors, and related ideas.
+- **Knowledge Base**: edit and review the global `paper.md`.
+- **In-browser editing**: modify generated Markdown/code files.
+- **Run button**: execute local `.py`, `.js`, `.ts`, and `.sh` demo files.
+- **Save to Notes**: clip selected content into `user.md`.
+
+---
+
+## Repository Structure
+
+```text
 claude-paper/
 ├── .claude-plugin/
-│   └── marketplace.json              # Marketplace catalog entry
 ├── plugin/
 │   ├── .claude-plugin/
-│   │   └── plugin.json              # Plugin manifest
+│   ├── commands/
+│   │   ├── study.md
+│   │   └── webui.md
+│   ├── hooks/
 │   ├── skills/
 │   │   └── study/
-│   │       ├── SKILL.md             # Study workflow definition
+│   │       ├── SKILL.md
+│   │       ├── alphaxiv-paper-lookup.md
 │   │       └── scripts/
-│   │           ├── parse-pdf.js    # PDF parsing utility
-│   │           └── extract-images.py  # Image extraction
-│   ├── commands/
-│   │   └── webui.md                # /webui command
-│   ├── hooks/
-│   │   ├── hooks.json              # Session lifecycle hooks
-│   │   └── check-install.sh        # Installation verification
 │   ├── src/
-│   │   └── web/                    # Nuxt.js web viewer
-│   │       ├── components/         # Vue components
-│   │       ├── composables/        # Vue composables
-│   │       ├── server/             # API endpoints
-│   │       └── package.json
+│   │   └── web/
 │   └── package.json
-└── README.md
+├── README.md
+└── README.zh-CN.md
 ```
 
-### Key Components
+Key pieces:
 
-1. **Study Skill** - Main workflow agent that orchestrates paper processing
-2. **PDF Parser** - Extracts text, metadata, and code links using pdf-parse
-3. **Image Extractor** - Python script for PDF figure extraction
-4. **Web Viewer** - Nuxt.js application with Nitro API server
-5. **Hooks System** - Automatic dependency installation and setup
+- `plugin/skills/study/SKILL.md`: the end-to-end paper study workflow.
+- `plugin/skills/study/alphaxiv-paper-lookup.md`: AlphaXiv lookup helper.
+- `plugin/commands/study.md`: slash command entry for study.
+- `plugin/commands/webui.md`: production web viewer launcher.
+- `plugin/src/web/`: Nuxt UI and Nitro APIs.
 
 ---
 
 ## Development
 
-### Running Tests
+### Run the Parser
 
 ```bash
-# Test PDF parsing
 node plugin/skills/study/scripts/parse-pdf.js /path/to/paper.pdf
+```
 
-# Test web viewer
+### Run the Web App in Dev Mode
+
+```bash
 cd plugin/src/web
+npm install
 npm run dev
+```
 
-# Test full workflow
+### Build the Production Viewer
+
+```bash
+cd plugin/src/web
+npm run build
+```
+
+### Test the Plugin Locally
+
+```bash
 cd /path/to/claude-paper
 claude --plugin-dir ./plugin
+```
+
+Then run:
+
+```bash
 /claude-paper:study /path/to/paper.pdf
 ```
 
-### Building for Production
-
-```bash
-# Build web viewer
-cd plugin/src/web
-npm run build
-
-# The built viewer will be in .output/
-```
-
 ---
 
-## Configuration
+## Configuration Notes
 
-### Environment Variables
+Defaults:
 
-No configuration required! The plugin uses sensible defaults:
+- Papers directory: `~/claude-papers/`
+- Web UI port: `5815`
+- Code execution timeout in web UI: `30s`
 
-- **Papers directory**: `~/claude-papers/`
-- **Web viewer port**: `5815`
-- **Content limit**: `50,000` characters (with intelligent truncation)
-
-### Advanced Customization
-
-You can modify behavior by editing the skill file at:
-`plugin/skills/study/SKILL.md`
-
----
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests if applicable
-5. Commit your changes (`git commit -m 'add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+The main workflow lives in `plugin/skills/study/SKILL.md`, so prompt behavior and output conventions can be adjusted there.
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE).
 
 ---
 
 ## Acknowledgments
 
 - Built with [Claude Code](https://code.claude.com)
-- PDF parsing powered by [pdf-parse](https://github.com/ffalt/json2csv-converter)
+- Inspired by and based on [alaliqing/claude-paper](https://github.com/alaliqing/claude-paper)
+- Thanks to [AlphaXiv](https://www.alphaxiv.org/) for providing machine-readable paper overviews
 - Web viewer built with [Nuxt.js](https://nuxt.com)
-- Math rendering by [KaTeX](https://katex.org)
+- Math rendering powered by [KaTeX](https://katex.org)
+- PDF parsing powered by [pdf-parse](https://www.npmjs.com/package/pdf-parse)
