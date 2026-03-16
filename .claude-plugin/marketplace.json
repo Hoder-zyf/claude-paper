@@ -3,19 +3,19 @@
   "name": "claude-paper",
   "description": "A plugin for studying research papers with automated material generation and code demonstrations",
   "owner": {
-    "name": "alaliqing"
+    "name": "Hoder-zyf"
   },
   "plugins": [
     {
       "name": "claude-paper",
-      "version": "1.1.1",
-      "description": "A plugin for studying research papers with automated material generation, code demos, and a web viewer",
+      "version": "2.0.0",
+      "description": "A plugin for studying research papers with automated material generation, code demos, knowledge graph, and a web viewer",
       "author": {
-        "name": "alaliqing"
+        "name": "Hoder-zyf"
       },
       "category": "development",
       "source": "./plugin",
-      "homepage": "https://github.com/alaliqing/claude-paper"
+      "homepage": "https://github.com/Hoder-zyf/claude-paper"
     }
   ]
 }
