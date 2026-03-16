@@ -69,6 +69,12 @@ export default defineEventHandler((event) => {
 
     const fileTree = buildFileTree(paperDir)
 
+    // Always ensure user.md appears in the tree, even if it doesn't exist yet
+    const hasUserMd = fileTree.some(n => n.name === 'user.md' && n.type === 'file')
+    if (!hasUserMd) {
+      fileTree.push({ name: 'user.md', path: 'user.md', type: 'file' })
+    }
+
     return fileTree
   } catch (e: any) {
     if (e.statusCode) throw e

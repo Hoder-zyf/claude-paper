@@ -5,6 +5,10 @@
         <span class="logo-icon">◈</span>
         <span class="logo-text">Research Library</span>
       </div>
+      <div class="nav-links">
+        <NuxtLink to="/graph" class="nav-link">Knowledge Graph</NuxtLink>
+        <NuxtLink to="/notes" class="nav-link">Knowledge Base</NuxtLink>
+      </div>
     </nav>
 
     <div class="library-content">
@@ -42,6 +46,8 @@
           :view-mode="viewMode"
           @edit-tags="openTagEditor(paper)"
           @remove="handleRemovePaper"
+          @toggle-starred="handleToggleStarred"
+          @toggle-read="handleToggleRead"
         />
       </div>
     </div>
@@ -60,7 +66,7 @@
 <script setup lang="ts">
 import type { Paper } from '~/composables/usePapers'
 
-const { papers, loading, error, loadPapers, updatePaperTags, removePaper } = usePapers()
+const { papers, loading, error, loadPapers, updatePaperTags, removePaper, updateStatus } = usePapers()
 
 const searchQuery = ref('')
 const selectedTags = ref<string[]>([])
@@ -165,6 +171,18 @@ const handleRemovePaper = async (slug: string) => {
   await removePaper(slug)
 }
 
+const handleToggleStarred = async (slug: string) => {
+  const paper = papers.value.find(p => p.slug === slug) as any
+  if (!paper) return
+  await updateStatus(slug, { starred: !paper.starred })
+}
+
+const handleToggleRead = async (slug: string) => {
+  const paper = papers.value.find(p => p.slug === slug) as any
+  if (!paper) return
+  await updateStatus(slug, { read: !paper.read })
+}
+
 useHead({
   title: 'Research Library'
 })
@@ -211,6 +229,27 @@ useHead({
 .logo-text {
   font-size: 0.95rem;
   letter-spacing: 0.01em;
+}
+
+.nav-links {
+  margin-left: auto;
+}
+
+.nav-link {
+  padding: 0.5rem 1rem;
+  color: #374151;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  background: #f8f9fa;
+  border-color: #6b7280;
 }
 
 /* Library Content */

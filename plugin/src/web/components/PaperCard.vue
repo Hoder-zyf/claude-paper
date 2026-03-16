@@ -4,6 +4,10 @@
       <template v-if="viewMode === 'list'">
         <div class="paper-card__list-main">
           <h3>{{ paper.title }}</h3>
+          <div class="status-badges">
+            <span v-if="paper.starred" class="badge badge--star" title="Starred">★</span>
+            <span v-if="paper.read" class="badge badge--read" title="Read">✓ Read</span>
+          </div>
           <p class="abstract">{{ paper.abstract }}</p>
 
           <div v-if="paper.githubLinks?.length || paper.codeLinks?.length" class="code-links">
@@ -40,6 +44,10 @@
 
       <template v-else>
         <h3>{{ paper.title }}</h3>
+        <div class="status-badges">
+          <span v-if="paper.starred" class="badge badge--star" title="Starred">★</span>
+          <span v-if="paper.read" class="badge badge--read" title="Read">✓ Read</span>
+        </div>
         <p class="authors">{{ paper.authors.join(', ') }}</p>
         <p class="abstract">{{ paper.abstract }}</p>
 
@@ -81,6 +89,12 @@
         ···
       </button>
       <div v-if="menuOpen" class="kebab-dropdown">
+        <button class="kebab-item" @click="handleToggleStarred" type="button">
+          {{ paper.starred ? '★ Unstar' : '☆ Star' }}
+        </button>
+        <button class="kebab-item" @click="handleToggleRead" type="button">
+          {{ paper.read ? '✓ Mark Unread' : 'Mark as Read' }}
+        </button>
         <button class="kebab-item" @click="handleEditTags" type="button">Edit Tags</button>
         <button class="kebab-item kebab-item--danger" @click="handleRemove" type="button">Delete</button>
       </div>
@@ -102,7 +116,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit-tags', 'remove'])
+const emit = defineEmits(['edit-tags', 'remove', 'toggle-starred', 'toggle-read'])
 
 const menuOpen = ref(false)
 
@@ -122,6 +136,16 @@ const handleEditTags = () => {
 const handleRemove = () => {
   menuOpen.value = false
   emit('remove', props.paper.slug)
+}
+
+const handleToggleStarred = () => {
+  menuOpen.value = false
+  emit('toggle-starred', props.paper.slug)
+}
+
+const handleToggleRead = () => {
+  menuOpen.value = false
+  emit('toggle-read', props.paper.slug)
 }
 
 const vClickOutside = {
@@ -237,6 +261,32 @@ const getRepoName = (url) => {
 
 .kebab-item--danger:hover {
   background-color: #fef2f2;
+}
+
+.status-badges {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.badge--star {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.badge--read {
+  background: #dcfce7;
+  color: #166534;
 }
 
 .tags-section {

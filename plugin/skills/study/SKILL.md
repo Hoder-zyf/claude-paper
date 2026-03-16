@@ -9,9 +9,7 @@ allowed-tools: Bash, Write, Edit, Read
 
 Invoke this skill with a paper PDF path.
 
-**Language Detection**: Detect the user's language from their input and generate ALL materials in that language.
-- Example: User says "我们学习一下这篇论文吧" → Generate materials in Chinese
-- Example: User says "Let's study this paper" → Generate materials in English
+**默认语言：中文**。所有生成的文件（summary.md、method.md、reflection.md、README.md 等）统一使用中文，除非用户明确用英文发出指令。
 
 ---
 
@@ -67,32 +65,54 @@ Recommended:
 
 Supports multiple input formats:
 
-* **Local path**: `~/Downloads/paper.pdf`
-* **Direct PDF URL**: `https://arxiv.org/pdf/1706.03762.pdf`
-* **arXiv URL**: `https://arxiv.org/abs/1706.03762`
+* **Single paper**: local path, PDF URL, or arXiv URL
+* **Multiple papers**: multiple paths/URLs separated by spaces or newlines
+* **Directory**: a folder path containing PDF files (e.g. `~/papers/`)
 
-## Step 1a: Check input type and download if URL
+## Step 1a: Resolve inputs to PDF file list
 
 ```bash
 USER_INPUT="<user-input>"
 
-# Check if input is a URL (starts with http:// or https://)
-if [[ "$USER_INPUT" =~ ^https?:// ]]; then
-  # Download PDF from URL
-  INPUT_PATH=$(node ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/download-pdf.cjs "$USER_INPUT")
-else
-  # Use local path directly
-  INPUT_PATH="$USER_INPUT"
+# If input is a directory, collect all PDFs in it
+# If input contains multiple paths/URLs, process each one
+# If input is a single path/URL, process it alone
+```
+
+For each input item:
+* If it starts with `http://` or `https://`, download via `node ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/download-pdf.cjs "<url>"`
+* If it is a directory, find all `.pdf` files inside it
+* Otherwise, use the local path directly
+
+When processing multiple papers, run the **full workflow (Steps 2-8) for each paper individually**, then launch Web UI once at the end.
+
+## Step 1a.5: AlphaXiv 补充内容（仅限 arXiv 论文）
+
+若输入包含 arXiv URL 或 paper ID，先从 alphaxiv.org 获取结构化概述并保存：
+
+```bash
+# 从 URL 中提取 arXiv paper ID，例如：
+# https://arxiv.org/abs/2603.03296 → 2603.03296
+PAPER_ID="<extracted-id>"
+PAPER_DIR=~/claude-papers/papers/<paper-slug>
+mkdir -p "$PAPER_DIR"
+
+# 优先获取结构化报告
+ALPHAXIV=$(curl -s "https://alphaxiv.org/overview/${PAPER_ID}.md")
+
+# 若 404，降级到全文
+if echo "$ALPHAXIV" | grep -q "404\|not found\|Not Found" || [ -z "$ALPHAXIV" ]; then
+  ALPHAXIV=$(curl -s "https://alphaxiv.org/abs/${PAPER_ID}.md")
+fi
+
+# 若获取成功，保存为 alphaxiv.md
+if [ -n "$ALPHAXIV" ] && ! echo "$ALPHAXIV" | grep -q "404\|not found\|Not Found"; then
+  echo "$ALPHAXIV" > "$PAPER_DIR/alphaxiv.md"
+  echo "alphaxiv.md 已保存"
 fi
 ```
 
-For URLs, the download script will:
-* Download PDFs to `/tmp/claude-paper-downloads/`
-* Convert arXiv `/abs/` URLs to PDF URLs automatically
-* Validate that URLs point to PDF files
-* Return the local file path for processing
-
-For local paths, use the path directly without downloading.
+**关键**：若 `alphaxiv.md` 成功生成，在后续**所有**生成步骤（summary.md、method.md、reflection.md、README.md、code、index.html）中都要读取并参考其内容，与 PDF 解析结果相互印证，以获得更完整准确的理解。
 
 ## Step 1b: Parse PDF
 
@@ -111,6 +131,8 @@ Output includes:
 * authors
 * abstract
 * full content
+* sections (detected section names with content lengths)
+* references (extracted reference list)
 * githubLinks
 * codeLinks
 
@@ -151,6 +173,23 @@ Rename key images descriptively:
 
 ---
 
+# Step 2.5: Read Global Knowledge Base
+
+Before generating any materials, read the cross-paper knowledge file to connect this paper to prior insights:
+
+```bash
+cat ~/claude-papers/paper.md 2>/dev/null || echo "(no global notes yet)"
+```
+
+If it exists and has content:
+- Identify which previously studied papers are conceptually related to this one
+- Note any open questions or themes from prior papers that this paper addresses
+- Keep this context in mind when writing summary.md and method.md — explicitly link to related work where relevant (e.g., "This extends the approach from [Paper X] by...")
+
+If it's empty or doesn't exist yet, proceed normally.
+
+---
+
 # Step 3: Assess Paper Before Generating Materials
 
 Before generating any files, evaluate:
@@ -188,21 +227,42 @@ This assessment determines:
 
 # Step 3.5: Generate 2-4 Semantic Tags (Mandatory)
 
-Before generating files, infer 2-4 tags from semantic understanding of the paper.
+Before generating files, read the canonical tag registry and reuse existing tags where appropriate:
+
+```bash
+cat ~/claude-papers/tags.json 2>/dev/null || echo "[]"
+```
 
 Rules:
 
-* Generate between 2 and 4 tags
+* Generate between 2 and **3** tags (maximum 3)
 * Tags must be distinct
 * Each tag should be short (1-3 words)
 * Avoid generic tags: `paper`, `research`, `ai`, `ml`
 * Prefer a mix of problem/domain tags and method/core idea tags
+* **Prefer reusing tags from `~/claude-papers/tags.json`** when they fit — consistency beats precision
+* Only invent a new tag when no existing tag covers the concept
 
-Examples:
+If you use a new tag not in `tags.json`, append it to the registry:
 
-* `machine translation`, `self-attention`
-* `3d detection`, `bev transformer`, `lidar fusion`
-* `protein folding`, `structure prediction`, `alphafold`
+```python
+import json
+from pathlib import Path
+
+tags_path = Path.home() / 'claude-papers/tags.json'
+tags = json.loads(tags_path.read_text()) if tags_path.exists() else []
+existing = {t['tag'] for t in tags}
+
+new_tags = [
+    # Add entries for any new tags you created, e.g.:
+    # {"tag": "my-new-tag", "category": "topic", "description": "Short description"},
+]
+for entry in new_tags:
+    if entry['tag'] not in existing:
+        tags.append(entry)
+
+tags_path.write_text(json.dumps(tags, indent=2, ensure_ascii=False))
+```
 
 Persist tags in both locations:
 
@@ -286,6 +346,19 @@ Focus on **what we can learn** from this paper — research context, takeaways, 
 * If you were to extend this paper, what would you do
 * What open problems remain
 * Where it might fail in practice
+
+---
+
+### user.md
+
+Create a blank notes file for the user to collect key takeaways:
+
+```markdown
+# My Notes
+
+<!-- Your personal notes for this paper. -->
+<!-- Use the "Save to Notes" button in the Web UI to clip passages while reading. -->
+```
 
 ---
 
@@ -403,6 +476,44 @@ with open(index_path, 'w') as f:
 ```
 ~/claude-papers/index.json
 ```
+
+---
+
+# Step 7.5: Update Global Knowledge Base
+
+Append a new entry to `~/claude-papers/paper.md` that connects this paper to the broader knowledge chain.
+
+Use this Python template:
+
+```python
+import os
+from datetime import date
+
+notes_path = os.path.expanduser("~/claude-papers/paper.md")
+
+# 若文件不存在则初始化
+if not os.path.exists(notes_path):
+    with open(notes_path, 'w') as f:
+        f.write("# 知识库\n\n跨论文洞察、联系与持续演化理解的记录。\n\n")
+
+# PAPER_SLUG = 论文的 slug（用于生成 web UI 链接）
+# PAPER_TITLE, TAGS, ONE_SENTENCE_CONTRIBUTION 等需替换为实际内容
+with open(notes_path, 'a') as f:
+    f.write(f"\n---\n\n")
+    f.write(f"## [{PAPER_TITLE}](http://localhost:5815/papers/{PAPER_SLUG})\n\n")
+    f.write(f"*{date.today().isoformat()} · 标签: {', '.join(TAGS)}*\n\n")
+    f.write(f"**核心贡献**：{ONE_SENTENCE_CONTRIBUTION}\n\n")
+    f.write(f"**核心洞察**：{MOST_IMPORTANT_CONCEPTUAL_INSIGHT}\n\n")
+    # 若与知识库中已有论文存在真实关联，则添加：
+    # f.write(f"**与已有工作的联系**：{HOW_THIS_RELATES_TO_PREVIOUS_PAPERS}\n\n")
+    f.write(f"**开放问题**：{INTERESTING_QUESTION_THIS_RAISES}\n\n")
+```
+
+各字段说明（均用中文撰写）：
+- **核心贡献**：一句话，说明论文具体构建/提出了什么
+- **核心洞察**：最值得记住的单一概念——"灵光一现"的那个点
+- **与已有工作的联系**：仅在与知识库中已有论文存在真实关联时填写，否则省略
+- **开放问题**：论文留下的未解问题，或值得跟进的方向
 
 ---
 

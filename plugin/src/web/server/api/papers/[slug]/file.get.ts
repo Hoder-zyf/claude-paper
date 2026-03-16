@@ -191,6 +191,17 @@ export default defineEventHandler((event) => {
     }
 
     if (!fs.existsSync(fullPath)) {
+      // For editable text files, return empty content instead of 404
+      // so users can open and create them via the editor
+      const fileType = getFileType(filePath)
+      if (['markdown', 'text', 'code'].includes(fileType)) {
+        return {
+          path: filePath,
+          type: fileType,
+          content: '',
+          language: fileType === 'code' ? getLanguageFromExtension(filePath) : undefined
+        }
+      }
       throw createError({
         statusCode: 404,
         statusMessage: 'File not found'

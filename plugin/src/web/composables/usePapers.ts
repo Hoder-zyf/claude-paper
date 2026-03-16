@@ -8,6 +8,8 @@ export interface Paper {
   url?: string
   date?: string
   tags?: string[]
+  read?: boolean
+  starred?: boolean
 }
 
 export const usePapers = () => {
@@ -56,19 +58,37 @@ export const usePapers = () => {
 
   const updatePaperTags = async (slug: string, tags: string[]): Promise<boolean> => {
     try {
-      await $fetch(`/api/papers/${slug}/tags`, {
+      const result = await $fetch<{ success: boolean; tags: string[] }>(`/api/papers/${slug}/tags`, {
         method: 'PATCH',
         body: { tags }
       })
 
       const paper = papers.value.find(p => p.slug === slug)
       if (paper) {
-        paper.tags = tags
+        paper.tags = result.tags
       }
 
       return true
     } catch (e) {
       console.error('Failed to update tags:', e)
+      return false
+    }
+  }
+
+  const updateStatus = async (slug: string, status: { read?: boolean; starred?: boolean }): Promise<boolean> => {
+    try {
+      await $fetch(`/api/papers/${slug}/status`, {
+        method: 'PATCH',
+        body: status,
+      })
+      const paper = papers.value.find(p => p.slug === slug)
+      if (paper) {
+        if (status.read !== undefined) (paper as any).read = status.read
+        if (status.starred !== undefined) (paper as any).starred = status.starred
+      }
+      return true
+    } catch (e) {
+      console.error('Failed to update status:', e)
       return false
     }
   }
@@ -81,6 +101,7 @@ export const usePapers = () => {
     getPaper,
     getPaperMarkdown,
     removePaper,
-    updatePaperTags
+    updatePaperTags,
+    updateStatus
   }
 }

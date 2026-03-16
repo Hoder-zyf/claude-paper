@@ -23,8 +23,9 @@ export default defineEventHandler(async (event) => {
 
   const tags = body.tags
     .filter((tag): tag is string => typeof tag === 'string')
-    .map(tag => tag.trim())
+    .map(tag => tag.trim().toLowerCase())
     .filter(Boolean)
+    .slice(0, 3)
 
   try {
     const papersDir = path.join(homedir(), 'claude-papers/papers')
@@ -54,7 +55,7 @@ export default defineEventHandler(async (event) => {
         ? index
         : (Array.isArray(index?.papers) ? index.papers : null)
 
-      const paper = papers?.find((p: any) => p.slug === slug)
+      const paper = papers?.find((p: any) => p.slug === slug || p.id === slug)
       if (paper) {
         paper.tags = tags
         fs.writeFileSync(indexPath, JSON.stringify(index, null, 2))

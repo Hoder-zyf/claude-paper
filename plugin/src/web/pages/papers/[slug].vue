@@ -73,21 +73,60 @@
               <span class="crumb file-name">{{ selectedFile || 'README.md' }}</span>
             </div>
 
-            <!-- HTML file controls -->
-            <div v-if="fileType === 'html'" class="html-controls">
-              <button @click="toggleHtmlView" class="control-btn">
-                <span v-if="showHtmlPreview">Code</span>
-                <span v-else>Preview</span>
+            <div class="header-actions">
+              <!-- Save to Notes button (not in edit mode) -->
+              <button
+                v-if="!editMode && (fileType === 'markdown' || fileType === 'code' || fileType === 'text')"
+                @click="saveSelectionToNotes"
+                class="control-btn notes-btn"
+                title="Save selected text to user.md notes"
+              >
+                <span>Save to Notes</span>
               </button>
-              <button @click="openHtmlInNewTab" class="control-btn">
-                <span>Open in New Tab</span>
+
+              <!-- Edit / Save / Cancel for editable files -->
+              <template v-if="isEditableFile">
+                <template v-if="editMode">
+                  <button @click="saveEdit" class="control-btn save-confirm-btn" :disabled="editSaving">
+                    <span v-if="editSaving">Saving...</span>
+                    <span v-else>Save</span>
+                  </button>
+                  <button @click="cancelEdit" class="control-btn">Cancel</button>
+                </template>
+                <button v-else @click="enterEditMode" class="control-btn">Edit</button>
+              </template>
+
+              <!-- Run Code button -->
+              <button
+                v-if="isRunnableFile"
+                @click="runCode"
+                class="control-btn run-btn"
+                :disabled="codeRunning"
+              >
+                <span v-if="codeRunning">Running...</span>
+                <span v-else>Run</span>
               </button>
+
+              <!-- HTML file controls -->
+              <template v-if="fileType === 'html'">
+                <button @click="toggleHtmlView" class="control-btn">
+                  <span v-if="showHtmlPreview">Code</span>
+                  <span v-else>Preview</span>
+                </button>
+                <button @click="openHtmlInNewTab" class="control-btn">
+                  <span>Open in New Tab</span>
+                </button>
+              </template>
             </div>
           </div>
 
           <article class="content">
             <div v-if="fileLoading" class="file-loading">
               <div class="shimmer"></div>
+            </div>
+            <!-- Inline editor -->
+            <div v-else-if="editMode" class="file-viewer edit-viewer">
+              <textarea v-model="editContent" class="edit-textarea" spellcheck="false"></textarea>
             </div>
             <div v-else-if="fileType === 'image'" class="file-viewer image-viewer">
               <img :src="fileUrl" :alt="selectedFile" />
@@ -112,8 +151,35 @@
             <div v-else class="empty-state">
               <p>No content available</p>
             </div>
+
+            <!-- Code Run Output Panel -->
+            <div v-if="runOutput !== null" class="run-output-panel">
+              <div class="run-output-header">
+                <span class="run-output-title">Output</span>
+                <span :class="['run-exit-code', runOutput.exitCode === 0 ? 'success' : 'error']">
+                  exit {{ runOutput.exitCode }}
+                </span>
+                <span v-if="runOutput.elapsed" class="run-elapsed">{{ runOutput.elapsed }}ms</span>
+                <button @click="runOutput = null" class="run-close-btn">Close</button>
+              </div>
+              <pre v-if="runOutput.stdout" class="run-stdout">{{ runOutput.stdout }}</pre>
+              <pre v-if="runOutput.stderr" class="run-stderr">{{ runOutput.stderr }}</pre>
+              <p v-if="!runOutput.stdout && !runOutput.stderr" class="run-empty">No output</p>
+            </div>
           </article>
         </main>
+      </div>
+
+      <!-- Save to Notes Modal -->
+      <div v-if="showNotesModal" class="modal-overlay" @click.self="showNotesModal = false">
+        <div class="notes-modal">
+          <h3>Save to Notes</h3>
+          <textarea v-model="notesContent" class="notes-textarea" rows="6" placeholder="Edit before saving..."></textarea>
+          <div class="notes-modal-actions">
+            <button @click="showNotesModal = false" class="control-btn">Cancel</button>
+            <button @click="confirmSaveNotes" class="control-btn save-confirm-btn">Save</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -182,6 +248,60 @@ const fileLoading = ref(false)
 const sidebarCollapsed = ref(false)
 const showHtmlPreview = ref(true)
 
+// Notes modal state
+const showNotesModal = ref(false)
+const notesContent = ref('')
+
+// Code runner state
+const codeRunning = ref(false)
+const runOutput = ref<{ stdout: string, stderr: string, exitCode: number, elapsed?: number } | null>(null)
+
+// Edit mode state
+const editMode = ref(false)
+const editContent = ref('')
+const editSaving = ref(false)
+
+const isRunnableFile = computed(() => {
+  if (!selectedFile.value) return false
+  return /\.(py|js|ts|sh)$/.test(selectedFile.value)
+})
+
+const isEditableFile = computed(() => {
+  if (!selectedFile.value) return false
+  return /\.(md|py|js|ts|sh|txt)$/.test(selectedFile.value)
+})
+
+const enterEditMode = () => {
+  editContent.value = fileContent.value
+  editMode.value = true
+}
+
+const cancelEdit = () => {
+  editMode.value = false
+  editContent.value = ''
+}
+
+const saveEdit = async () => {
+  editSaving.value = true
+  const wasNew = !fileContent.value
+  try {
+    await $fetch(`/api/papers/${slug}/file-write`, {
+      method: 'PUT',
+      body: { path: selectedFile.value, content: editContent.value },
+    })
+    fileContent.value = editContent.value
+    editMode.value = false
+    // Refresh file tree if this was a new file being created
+    if (wasNew) {
+      fileTree.value = await $fetch(`/api/papers/${slug}/files`)
+    }
+  } catch (e: any) {
+    console.error('Save failed:', e)
+  } finally {
+    editSaving.value = false
+  }
+}
+
 // Load paper metadata and file tree
 onMounted(async () => {
   try {
@@ -236,6 +356,9 @@ const loadFile = async (path: string) => {
 }
 
 const selectFile = (path: string) => {
+  editMode.value = false
+  editContent.value = ''
+  runOutput.value = null
   loadFile(path)
 }
 
@@ -253,6 +376,53 @@ const openHtmlInNewTab = () => {
   window.open(url, '_blank')
   // Clean up the URL after a delay
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const saveSelectionToNotes = () => {
+  const selection = window.getSelection()?.toString()?.trim()
+  notesContent.value = selection || ''
+  showNotesModal.value = true
+}
+
+const confirmSaveNotes = async () => {
+  if (!notesContent.value.trim()) return
+  try {
+    await $fetch(`/api/papers/${slug}/user-notes`, {
+      method: 'POST',
+      body: { content: notesContent.value, source: selectedFile.value },
+    })
+    showNotesModal.value = false
+    notesContent.value = ''
+    // Refresh file tree in case user.md was just created
+    fileTree.value = await $fetch(`/api/papers/${slug}/files`)
+  } catch (e: any) {
+    console.error('Failed to save notes:', e)
+  }
+}
+
+const runCode = async () => {
+  codeRunning.value = true
+  runOutput.value = null
+  const start = Date.now()
+  try {
+    // If in edit mode, save current content first
+    if (editMode.value) {
+      await $fetch(`/api/papers/${slug}/file-write`, {
+        method: 'PUT',
+        body: { path: selectedFile.value, content: editContent.value },
+      })
+      fileContent.value = editContent.value
+    }
+    const result = await $fetch(`/api/papers/${slug}/run-code`, {
+      method: 'POST',
+      body: { path: selectedFile.value },
+    })
+    runOutput.value = { ...result as any, elapsed: Date.now() - start }
+  } catch (e: any) {
+    runOutput.value = { stdout: '', stderr: e.message || 'Execution failed', exitCode: 1, elapsed: Date.now() - start }
+  } finally {
+    codeRunning.value = false
+  }
 }
 
 const highlightedCode = computed(() => {
@@ -705,6 +875,9 @@ useHead({
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  position: sticky;
+  top: 64px;
+  z-index: 50;
 }
 
 .breadcrumb {
@@ -1208,5 +1381,222 @@ useHead({
   border: 1px solid #e5e7eb;
   font-size: 0.85rem;
   color: #6b7280;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.notes-btn {
+  color: #6b7280;
+}
+
+.run-btn {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
+.run-btn:hover {
+  background: #1f2937;
+}
+
+.run-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Run Output Panel */
+.run-output-panel {
+  margin-top: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111827;
+}
+
+.run-output-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.8rem;
+}
+
+.run-output-title {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.run-exit-code {
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.run-exit-code.success {
+  background: #065f46;
+  color: #6ee7b7;
+}
+
+.run-exit-code.error {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+.run-elapsed {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.run-close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.run-close-btn:hover {
+  color: #d1d5db;
+}
+
+.run-stdout {
+  margin: 0;
+  padding: 1rem;
+  color: #e5e7eb;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.825rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.run-stderr {
+  margin: 0;
+  padding: 1rem;
+  color: #fca5a5;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.825rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.run-empty {
+  margin: 0;
+  padding: 1rem;
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+/* Notes Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+}
+
+.notes-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.notes-modal h3 {
+  margin: 0 0 1rem 0;
+  font-family: 'Crimson Pro', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  resize: vertical;
+  color: #1f2937;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: #6b7280;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+}
+
+.notes-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.save-confirm-btn {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
+.save-confirm-btn:hover {
+  background: #1f2937;
+}
+
+/* Inline editor */
+.edit-viewer {
+  height: calc(100vh - 200px);
+  min-height: 400px;
+}
+
+.edit-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 1.5rem;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: #1f2937;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+}
+
+.edit-textarea:focus {
+  border-color: #6b7280;
+  background: #ffffff;
 }
 </style>

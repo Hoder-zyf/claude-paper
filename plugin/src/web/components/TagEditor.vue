@@ -33,8 +33,9 @@
       <input
         v-model="newTag"
         type="text"
-        placeholder="Add tag (press Enter)"
+        :placeholder="localTags.length >= MAX_TAGS ? 'Max 3 tags reached' : 'Add tag (press Enter)'"
         class="tag-editor__input"
+        :disabled="localTags.length >= MAX_TAGS"
         @keydown.enter.prevent="addTag"
       />
     </div>
@@ -77,9 +78,11 @@ const emit = defineEmits<Emits>()
 const localTags = ref<string[]>([...props.initialTags])
 const newTag = ref('')
 
+const MAX_TAGS = 3
+
 const addTag = () => {
   const tag = newTag.value.trim()
-  if (tag && !localTags.value.includes(tag)) {
+  if (tag && !localTags.value.includes(tag) && localTags.value.length < MAX_TAGS) {
     localTags.value.push(tag)
     newTag.value = ''
   }

@@ -43,8 +43,14 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Then delete the paper directory
-    fs.rmSync(paperDir, { recursive: true, force: true })
+    // Move to macOS Trash instead of permanently deleting
+    const trashDir = path.join(homedir(), '.Trash')
+    const trashDest = path.join(trashDir, slug)
+    // Append timestamp if a same-named folder already exists in Trash
+    const dest = fs.existsSync(trashDest)
+      ? `${trashDest}-${Date.now()}`
+      : trashDest
+    fs.renameSync(paperDir, dest)
 
     return {
       success: true,
