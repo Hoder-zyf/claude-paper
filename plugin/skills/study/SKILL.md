@@ -98,11 +98,11 @@ PAPER_DIR=~/claude-papers/papers/<paper-slug>
 mkdir -p "$PAPER_DIR"
 
 # 优先获取结构化报告
-ALPHAXIV=$(curl -s "https://alphaxiv.org/overview/${PAPER_ID}.md")
+ALPHAXIV=$(wget -qO- "https://alphaxiv.org/overview/${PAPER_ID}.md" 2>/dev/null)
 
 # 若 404，降级到全文
 if echo "$ALPHAXIV" | grep -q "404\|not found\|Not Found" || [ -z "$ALPHAXIV" ]; then
-  ALPHAXIV=$(curl -s "https://alphaxiv.org/abs/${PAPER_ID}.md")
+  ALPHAXIV=$(wget -qO- "https://alphaxiv.org/abs/${PAPER_ID}.md" 2>/dev/null)
 fi
 
 # 若获取成功，保存为 alphaxiv.md
@@ -377,7 +377,7 @@ This step is mandatory — do not skip it.
 
 # Step 5: Code Demonstrations (Conditional)
 
-**Skip this step** if the paper is a Survey, pure theoretical proof, or has no implementable method.
+**Skip this step** if the paper is a Survey, pure theoretical proof, or has no core algorithm worth illustrating. Code is not mandatory — only generate it when it meaningfully aids understanding.
 
 If generating code demos, place them in:
 ```
@@ -390,26 +390,25 @@ mkdir -p ~/claude-papers/papers/{paper-slug}/code
 
 Guidelines:
 
-* Self-contained
-* Runnable independently
-* Educational comments (explain why)
-* Focus on core contribution
-* Prefer clarity over completeness
+* **Simple**: the goal is to clarify core logic, not to reproduce the paper. A 50-line script that makes the key idea tangible is better than a 500-line faithful re-implementation.
+* **Aligned with the paper**: variable names, formula structure, and algorithm steps must match the paper's notation directly so the reader can cross-reference.
+* **NumPy only** — do not use PyTorch, TensorFlow, or other deep learning frameworks. The demo runs in the Web UI's code runner which only has NumPy available.
+* Self-contained and runnable independently (no external data files).
+* Educational inline comments that explain *why*, not just *what*.
 
 Possible types:
 
-* Simplified conceptual implementation
-* Visualization script
-* Minimal architecture demo
-* Interactive notebook (.ipynb)
+* Core algorithm / formula walkthrough
+* Visualization of key dynamics or results
+* Minimal architecture forward-pass demo
 
 Name descriptively:
 
-* model_demo.py
-* vectorized_planning_demo.py
-* contrastive_loss_visualization.ipynb
+* nca_complexity_demo.py
+* attnres_forward_demo.py
+* contrastive_loss_demo.py
 
-Avoid generic names.
+Avoid generic names like `demo.py` or `model.py`.
 
 ---
 

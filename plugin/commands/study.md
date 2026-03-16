@@ -11,7 +11,7 @@ Study one or more research papers using the full paper study workflow.
 
 The user should provide one of:
 - A local PDF path: `~/Downloads/paper.pdf`
-- A direct PDF URL: `https://arxiv.org/pdf/1706.03762.pdf`
+- A direct PDF URL: `https://arxiv.org/pdf/1706.03762`
 - An arXiv URL: `https://arxiv.org/abs/1706.03762`
 - Multiple paths/URLs for batch processing
 - A directory containing PDF files: `~/papers/`
