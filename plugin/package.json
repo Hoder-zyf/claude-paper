@@ -1,10 +1,13 @@
 {
   "name": "claude-paper",
-  "version": "1.1.1",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
     "dev:web": "cd src/web && npm run dev",
-    "build:web": "cd src/web && npm run build"
+    "build:web": "cd src/web && npm run build",
+    "sync:adapters": "node ../scripts/sync-agent-adapters.mjs",
+    "check:adapters": "node ../scripts/sync-agent-adapters.mjs --check",
+    "test:adapters": "node --test ../tests/agent-adapters.test.mjs"
   },
   "dependencies": {
     "pdf-parse": "^1.1.1"

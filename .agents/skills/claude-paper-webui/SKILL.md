@@ -1,8 +1,18 @@
 ---
-name: webui
+name: claude-paper-webui
 description: Start the Claude Paper web viewer to browse and study papers
-disable-model-invocation: false
 allowed-tools: Bash
+---
+
+## Cross-Agent Compatibility
+
+> This file is generated from the existing Claude Paper Skill. Its workflow and output requirements are unchanged; only equivalent host metadata, the plugin-root variable, and cross-skill invocation are adapted.
+
+Resolve `CLAUDE_PAPER_PLUGIN_ROOT` to the absolute `plugin/` directory in this package before each shell invocation. From this `SKILL.md`, that directory is `../../../plugin`.
+Treat every `${CLAUDE_PAPER_PLUGIN_ROOT}` reference below as that resolved absolute directory. Do not substitute the current workspace root.
+
+When this workflow asks to launch the viewer, load and follow the `claude-paper-webui` skill.
+
 ---
 
 # Start Web UI
@@ -13,7 +23,7 @@ This skill starts the Claude Paper web viewer using the production Nuxt.js serve
 
 Check if web dependencies are installed (with corruption check):
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/src/web"
+cd "${CLAUDE_PAPER_PLUGIN_ROOT}/src/web"
 
 if [ ! -d "node_modules" ]; then
   echo "First run - installing web dependencies..."
@@ -33,9 +43,9 @@ fi
 
 Build if needed or if plugin version changed:
 ```bash
-cd ${CLAUDE_PLUGIN_ROOT}/src/web
+cd ${CLAUDE_PAPER_PLUGIN_ROOT}/src/web
 
-PLUGIN_VERSION=$(node -e "console.log(require('${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json').version)")
+PLUGIN_VERSION=$(node -e "console.log(require('${CLAUDE_PAPER_PLUGIN_ROOT}/.claude-plugin/plugin.json').version)")
 BUILD_VERSION=""
 if [ -f ".output/.build-version" ]; then
   BUILD_VERSION=$(cat ".output/.build-version")
@@ -56,7 +66,7 @@ fi
 Ensure port 5815 is available (with version check restart):
 ```bash
 # Get version info for comparison
-PLUGIN_VERSION=$(node -e "console.log(require('${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json').version)")
+PLUGIN_VERSION=$(node -e "console.log(require('${CLAUDE_PAPER_PLUGIN_ROOT}/.claude-plugin/plugin.json').version)")
 BUILD_VERSION=""
 if [ -f ".output/.build-version" ]; then
   BUILD_VERSION=$(cat ".output/.build-version")

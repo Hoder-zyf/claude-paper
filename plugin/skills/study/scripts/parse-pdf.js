@@ -1,68 +1,65 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import pdf from 'pdf-parse';
+import {
+  buildArtifactSummary,
+  buildMetadata,
+  captureParserDiagnostics,
+  writeParseArtifacts,
+} from './parse-pdf-core.js';
 
-const pdfPath = process.argv[2];
-if (!pdfPath) {
-  console.error('Usage: node parse-pdf.js <pdf-path>');
-  process.exit(1);
+function printUsage() {
+  process.stderr.write('Usage: node parse-pdf.js <pdf-path> [--output-dir <directory>]\n');
 }
 
-// Wrap in async IIFE to handle async/await properly
-(async () => {
-  const dataBuffer = fs.readFileSync(pdfPath);
-  const data = await pdf(dataBuffer);
+function parseArguments(argv) {
+  let pdfPath = null;
+  let outputDir = null;
 
-  // Extract title (first line of text)
-  const lines = data.text.split('\n').filter(l => l.trim());
-  const title = lines[0] || 'Untitled';
-
-  // Extract abstract
-  const abstractMatch = data.text.match(/Abstract\s+(.+?)\s+(?=1\. Introduction|Introduction|$)/is);
-  const abstract = abstractMatch ? abstractMatch[1].trim() : '';
-
-  // Detect GitHub URLs
-  const githubMatch = data.text.match(/https?:\/\/github\.com\/[^\s\)]+/g);
-  const githubLinks = githubMatch || [];
-
-  // Detect other code links (arXiv, CodeOcean, etc.)
-  const codeUrlPatterns = [
-    /https?:\/\/(?:www\.)?arxiv\.org\/(?:code|src)\/[^\s\)]+/gi,
-    /https?:\/\/(?:www\.)?codeocean\.com\/[^\s\)]+/gi,
-    /https?:\/\/(?:www\.)?openreview\.net\/code[^\s\)]+/gi,
-    /https?:\/\/(?:www\.)?paperswithcode\.com\/[^\s\)]+/gi,
-    /\[code[\^\]]*\]\(https?:\/\/[^\)]+\)/gi
-  ];
-
-  const codeLinks = [];
-  for (const pattern of codeUrlPatterns) {
-    const matches = data.text.match(pattern);
-    if (matches) {
-      codeLinks.push(...matches.filter(l => !githubLinks.includes(l)));
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--output-dir') {
+      outputDir = argv[index + 1];
+      if (!outputDir) throw new Error('--output-dir requires a directory');
+      index += 1;
+    } else if (argument.startsWith('-')) {
+      throw new Error(`Unknown option: ${argument}`);
+    } else if (!pdfPath) {
+      pdfPath = argument;
+    } else {
+      throw new Error(`Unexpected argument: ${argument}`);
     }
   }
 
-  // Extract authors (basic pattern)
-  const authorMatch = data.text.match(/^([A-Z][a-z]+ [A-Z][a-z]+(?:,\s*[A-Z][a-z]+ [A-Z][a-z]+)*)/m);
-  const authors = authorMatch ? authorMatch[1].split(',').map(a => a.trim()) : [];
+  return { pdfPath, outputDir };
+}
 
-  // Truncate content if too large (max 50000 chars to prevent token issues)
-  const MAX_CONTENT_LENGTH = 50000;
-  const truncatedContent = data.text.length > MAX_CONTENT_LENGTH
-    ? data.text.substring(0, MAX_CONTENT_LENGTH) + '... [content truncated]'
-    : data.text;
+let options;
+try {
+  options = parseArguments(process.argv.slice(2));
+} catch (error) {
+  process.stderr.write(`${error.message}\n`);
+  printUsage();
+  process.exit(1);
+}
 
-  const metadata = {
-    title,
-    authors,
-    abstract,
-    content: truncatedContent,
-    githubLinks,
-    codeLinks: [...new Set(codeLinks)], // Remove duplicates
-    pageCount: data.numpages
-  };
+if (!options.pdfPath) {
+  printUsage();
+  process.exit(1);
+}
 
-  console.log(JSON.stringify(metadata, null, 2));
-})().catch(err => {
-  console.error('Error parsing PDF:', err);
+(async () => {
+  const dataBuffer = fs.readFileSync(options.pdfPath);
+  const { value: data, diagnostics } = await captureParserDiagnostics(() => pdf(dataBuffer));
+  for (const diagnostic of diagnostics) process.stderr.write(`${diagnostic}\n`);
+
+  const metadata = buildMetadata(data);
+  if (options.outputDir) {
+    const artifacts = await writeParseArtifacts(options.outputDir, metadata, data.text || '');
+    process.stdout.write(`${JSON.stringify(buildArtifactSummary(metadata, artifacts), null, 2)}\n`);
+  } else {
+    process.stdout.write(`${JSON.stringify(metadata, null, 2)}\n`);
+  }
+})().catch((error) => {
+  process.stderr.write(`Error parsing PDF: ${error.stack || error.message}\n`);
   process.exit(1);
 });

@@ -7,8 +7,6 @@ export default defineNuxtConfig({
     port: 5815
   },
 
-  modules: ['@nuxt/content'],
-
   app: {
     head: {
       title: 'Claude Paper Library',

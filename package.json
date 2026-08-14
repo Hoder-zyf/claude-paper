@@ -1,0 +1,54 @@
+{
+  "name": "@zlzliqing/claude-paper",
+  "version": "1.2.1",
+  "description": "Cross-agent distribution for Claude Paper research workflows and web viewer",
+  "type": "module",
+  "bin": {
+    "claude-paper": "bin/claude-paper.mjs"
+  },
+  "files": [
+    ".agents/skills",
+    ".claude-plugin",
+    ".codex-plugin",
+    ".opencode/commands",
+    "assets",
+    "bin",
+    "plugin",
+    "scripts/install-agent-adapters.mjs",
+    "scripts/sync-agent-adapters.mjs",
+    "skills",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "sync:adapters": "node scripts/sync-agent-adapters.mjs",
+    "check:adapters": "node scripts/sync-agent-adapters.mjs --check",
+    "test": "node --test",
+    "prepack": "npm run check:adapters && npm test"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alaliqing/claude-paper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alaliqing/claude-paper/issues"
+  },
+  "homepage": "https://github.com/alaliqing/claude-paper#readme",
+  "keywords": [
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "deepseek-harness",
+    "opencode",
+    "research-papers"
+  ],
+  "author": "alaliqing",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

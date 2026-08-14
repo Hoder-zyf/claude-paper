@@ -7,10 +7,10 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-purple)](https://code.claude.com)
+[![Node Version](https://img.shields.io/badge/node-20.19.x_%7C_22.12%2B-brightgreen)](https://nodejs.org)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-purple)](https://agentskills.io)
 
-A powerful **Claude Code plugin** that automates research paper study through intelligent material generation, code demonstrations, and an interactive web viewer.
+A research-paper learning plugin for **Claude Code, Codex, OpenCode, and DeepSeek Harness**. It preserves the same study workflow, generated materials, code demonstrations, and interactive web viewer across supported agents.
 
 <table>
   <tr>
@@ -31,9 +31,10 @@ A powerful **Claude Code plugin** that automates research paper study through in
 
 ## Features
 
-- **Automatic PDF parsing** - Extract title, authors, abstract, and full content
-- **Smart content truncation** - Handles large papers (50k char limit) intelligently
+- **Automatic PDF parsing** - Extract title, authors, abstract, links, and complete paper text
+- **Context-safe previews** - Save complete text to `paper.txt` while keeping a 50k preview in metadata
 - **Code repository detection** - Automatically finds GitHub, arXiv, CodeOcean links
+- **Quick paper summaries** - Screen a paper with a concise 300–500 word overview before a deep study
 - **Adaptive learning materials** - Generates README, summary, insights, Q&A based on paper complexity
 - **Code demonstrations** - Clean implementations with Jupyter notebooks and original code integration
 - **Interactive web viewer** - Nuxt.js interface with math equation support (KaTeX)
@@ -43,31 +44,56 @@ A powerful **Claude Code plugin** that automates research paper study through in
 
 ## Quick Start
 
-### Installation
+### Install all supported agents
 
-Install from the Claude Code marketplace:
+Install Claude Code, Codex, OpenCode, and DeepSeek Harness with one command—no repository clone required:
 
 ```bash
-# Add the marketplace
-/plugin marketplace add alaliqing/claude-paper
-
-# Install the plugin
-/plugin install claude-paper
-
-# Restart Claude Code for the plugin to take effect
+npx --yes @zlzliqing/claude-paper@latest install
 ```
 
-**That's it!** The plugin will automatically:
-- Install all dependencies (pdf-parse for PDF processing)
-- Create the papers directory at `~/claude-papers/`
-- Initialize the search index
-- Install web viewer dependencies
+The default `all` target covers all four agents. For Claude Code, the installer uses the official Claude CLI to register the package-local marketplace and install or update the user-scoped plugin. For the other agents, it installs the shared Skills and OpenCode commands where applicable.
+
+Install only selected agents when needed:
+
+```bash
+npx --yes @zlzliqing/claude-paper@latest install --target claude-code
+npx --yes @zlzliqing/claude-paper@latest install --target codex
+npx --yes @zlzliqing/claude-paper@latest install --target opencode
+npx --yes @zlzliqing/claude-paper@latest install --target deepseek-harness
+```
+
+Upgrade an existing installation with the same formal distribution channel:
+
+```bash
+# Upgrade all supported agents
+npx --yes @zlzliqing/claude-paper@latest upgrade
+
+# Keep upgrading only the agents selected during installation
+npx --yes @zlzliqing/claude-paper@latest upgrade --target codex,opencode
+```
+
+The default upgrade target is `all`. If the existing installation only targets selected agents, pass the same `--target` list during upgrade so no additional agent integrations are added.
+
+The npm package copies its packaged plugin runtime to the user data directory, installs the generated compatibility Skills in `~/.agents/skills/` when a shared-Skills host is selected, and adds OpenCode commands when OpenCode is selected. It initializes `~/claude-papers/` only when the library does not already exist. Restart the selected agents after installation or upgrade.
+
+### Claude Code Marketplace-only alternative
+
+If you only use Claude Code, you can still install directly from its marketplace:
+
+```bash
+/plugin marketplace add alaliqing/claude-paper
+/plugin install claude-paper
+```
+
+Claude Paper currently runs through Agent Skills; no separate MCP server installation or configuration is required.
 
 ### System Requirements
 
-- **Node.js**: 18.0.0 or higher
+- **Node.js**: 20.19.x, or 22.12.0 and higher
 - **npm**: Comes with Node.js
-- **Claude Code**: Latest version with plugin support
+- **Agent host**: Claude Code, Codex, OpenCode, or DeepSeek Harness
+- **Claude Code CLI**: Required when `all` or `claude-code` is selected
 - **poppler-utils**: For PDF image extraction (install via system package manager)
   - **macOS**: `brew install poppler`
   - **Ubuntu/Debian**: `sudo apt-get install poppler-utils`
@@ -77,9 +103,23 @@ Install from the Claude Code marketplace:
 
 ## Usage
 
+### Quickly Summarize a Research Paper
+
+Ask the selected agent for a quick summary, or use the host command directly:
+
+```bash
+# Claude Code
+/claude-paper:summary /path/to/paper.pdf
+
+# OpenCode
+/claude-paper-summary /path/to/paper.pdf
+```
+
+In Codex or DeepSeek Harness, ask for a quick paper summary or explicitly load the `claude-paper-summary` Skill. This creates `quick-summary.md` while preserving the PDF, complete `paper.txt`, and metadata in the shared paper library.
+
 ### Study a Research Paper
 
-Simply talk to Claude Code to study a paper:
+Simply ask the selected agent to study a paper:
 
 ```
 Help me study the paper at ~/Downloads/attention-is-all-you-need.pdf
@@ -95,7 +135,7 @@ Help me study the paper at https://arxiv.org/pdf/1706.03762.pdf
 Help me study the paper at https://arxiv.org/abs/1706.03762
 ```
 
-Claude will automatically trigger the study workflow and:
+The agent will automatically trigger the study workflow and:
 1. Parse the PDF and extract metadata
 2. Analyze paper complexity and type
 3. Generate adaptive learning materials
@@ -108,8 +148,14 @@ Claude will automatically trigger the study workflow and:
 ### Launch Web Viewer
 
 ```bash
+# Claude Code
 /claude-paper:webui
+
+# OpenCode
+/claude-paper-webui
 ```
+
+In Codex or DeepSeek Harness, ask the agent to start the Claude Paper web viewer or explicitly load the `claude-paper-webui` Skill.
 
 Opens the interactive web interface at **http://localhost:5815** where you can:
 - Browse all studied papers
@@ -128,7 +174,9 @@ Papers are organized in `~/claude-papers/papers/{paper-slug}/`:
 ├── papers/
 │   └── {paper-slug}/
 │       ├── paper.pdf                     # Original PDF file
+│       ├── paper.txt                     # Complete extracted text
 │       ├── meta.json                     # Paper metadata (title, authors, etc.)
+│       ├── quick-summary.md               # Concise screening summary (quick workflow)
 │       ├── README.md                     # Quick navigation and overview
 │       ├── summary.md                    # Detailed summary
 │       ├── insights.md                   # Key insights (most important!)
@@ -155,17 +203,32 @@ Papers are organized in `~/claude-papers/papers/{paper-slug}/`:
 
 ```
 claude-paper/
+├── package.json                       # npm distribution manifest
+├── bin/
+│   └── claude-paper.mjs              # npx install and upgrade entry point
 ├── .claude-plugin/
-│   └── marketplace.json              # Marketplace catalog entry
+│   └── marketplace.json              # Claude Code marketplace catalog
+├── .codex-plugin/
+│   └── plugin.json                   # Codex plugin manifest
+├── .agents/skills/                   # OpenCode and DSH discovery entries
+├── .opencode/commands/               # OpenCode slash-command wrappers
+├── skills/                           # Codex packaged Skill adapters
+├── scripts/
+│   ├── sync-agent-adapters.mjs       # Deterministic adapter generator
+│   └── install-agent-adapters.mjs    # Cross-agent installer and upgrader
 ├── plugin/
 │   ├── .claude-plugin/
 │   │   └── plugin.json              # Plugin manifest
 │   ├── skills/
-│   │   └── study/
-│   │       ├── SKILL.md             # Study workflow definition
-│   │       └── scripts/
-│   │           ├── parse-pdf.js    # PDF parsing utility
-│   │           └── extract-images.py  # Image extraction
+│   │   ├── study/
+│   │   │   ├── SKILL.md             # Study workflow definition
+│   │   │   └── scripts/
+│   │   │       ├── parse-pdf.js    # PDF parsing utility
+│   │   │       └── extract-images.py  # Image extraction
+│   │   ├── summary/
+│   │   │   └── SKILL.md             # Quick summary workflow definition
+│   │   └── webui/
+│   │       └── SKILL.md             # Web viewer workflow definition
 │   ├── commands/
 │   │   └── webui.md                # /webui command
 │   ├── hooks/
@@ -183,11 +246,13 @@ claude-paper/
 
 ### Key Components
 
-1. **Study Skill** - Main workflow agent that orchestrates paper processing
-2. **PDF Parser** - Extracts text, metadata, and code links using pdf-parse
-3. **Image Extractor** - Python script for PDF figure extraction
-4. **Web Viewer** - Nuxt.js application with Nitro API server
-5. **Hooks System** - Automatic dependency installation and setup
+1. **Study Skill** - Main workflow agent that orchestrates deep paper processing
+2. **Summary Skill** - Concise paper-screening workflow
+3. **PDF Parser** - Extracts text, metadata, and code links using pdf-parse
+4. **Image Extractor** - Python script for PDF figure extraction
+5. **Web Viewer** - Nuxt.js application with Nitro API server
+6. **Hooks System** - Claude Code lifecycle setup
+7. **Agent Adapters** - Generated discovery and invocation wrappers for Codex, OpenCode, and DeepSeek Harness
 
 ---
 
@@ -196,6 +261,12 @@ claude-paper/
 ### Running Tests
 
 ```bash
+# Verify cross-agent adapters and reviewed canonical Claude Skills
+npm test
+
+# Verify generated adapters are synchronized
+npm run check:adapters
+
 # Test PDF parsing
 node plugin/skills/study/scripts/parse-pdf.js /path/to/paper.pdf
 
@@ -207,6 +278,13 @@ npm run dev
 cd /path/to/claude-paper
 claude --plugin-dir ./plugin
 /claude-paper:study /path/to/paper.pdf
+```
+
+### Verifying the npm Distribution
+
+```bash
+# Runs adapter checks and tests before producing the publishable tarball
+npm pack --dry-run
 ```
 
 ### Building for Production
@@ -229,7 +307,7 @@ No configuration required! The plugin uses sensible defaults:
 
 - **Papers directory**: `~/claude-papers/`
 - **Web viewer port**: `5815`
-- **Content limit**: `50,000` characters (with intelligent truncation)
+- **Metadata preview limit**: `50,000` characters; complete extracted text remains in `paper.txt`
 
 ### Advanced Customization
 

@@ -1,8 +1,18 @@
 ---
-name: summary
+name: claude-paper-summary
 description: Use this for a quick summary of a research paper's core ideas and key points. Use when you want to quickly understand a paper without deep study materials. Triggers on PDF paths, arXiv URLs, or paper URLs.
-disable-model-invocation: false
 allowed-tools: Bash, Write, Read
+---
+
+## Cross-Agent Compatibility
+
+> This file is generated from the existing Claude Paper Skill. Its workflow and output requirements are unchanged; only equivalent host metadata, the plugin-root variable, and cross-skill invocation are adapted.
+
+Resolve `CLAUDE_PAPER_PLUGIN_ROOT` to the absolute `plugin/` directory in this package before each shell invocation. From this `SKILL.md`, that directory is `../../plugin`.
+Treat every `${CLAUDE_PAPER_PLUGIN_ROOT}` reference below as that resolved absolute directory. Do not substitute the current workspace root.
+
+When this workflow asks to launch the viewer, load and follow the `claude-paper-webui` skill.
+
 ---
 
 # Quick Paper Summary Workflow
@@ -15,7 +25,7 @@ This skill generates a **concise summary** of a research paper's core ideas and 
 - You're screening papers to decide which to study in depth
 
 **When NOT to use:**
-- You want comprehensive study materials (use `/claude-paper:study` instead)
+- You want comprehensive study materials (use `claude-paper-study` skill instead)
 - You need code demonstrations
 - You want interactive visualizations
 
@@ -30,15 +40,15 @@ This skill generates a **concise summary** of a research paper's core ideas and 
 # Step 0: Check Dependencies (First Run Only)
 
 ```bash
-if [ ! -f "${CLAUDE_PLUGIN_ROOT}/.installed" ]; then
+if [ ! -f "${CLAUDE_PAPER_PLUGIN_ROOT}/.installed" ]; then
   echo "First run - installing dependencies..."
-  cd "${CLAUDE_PLUGIN_ROOT}"
+  cd "${CLAUDE_PAPER_PLUGIN_ROOT}"
   npm install || exit 1
 
   # Install Python dependencies for image extraction
   python3 -m pip install pymupdf --user 2>/dev/null || pip3 install pymupdf --user 2>/dev/null || echo "Warning: Failed to install pymupdf"
 
-  touch "${CLAUDE_PLUGIN_ROOT}/.installed"
+  touch "${CLAUDE_PAPER_PLUGIN_ROOT}/.installed"
   echo "Dependencies installed!"
 fi
 ```
@@ -60,7 +70,7 @@ USER_INPUT="<user-input>"
 # Check if input is a URL (starts with http:// or https://)
 if [[ "$USER_INPUT" =~ ^https?:// ]]; then
   # Download PDF from URL
-  INPUT_PATH=$(node ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/download-pdf.cjs "$USER_INPUT")
+  INPUT_PATH=$(node ${CLAUDE_PAPER_PLUGIN_ROOT}/skills/study/scripts/download-pdf.cjs "$USER_INPUT")
 else
   # Use local path directly
   INPUT_PATH="$USER_INPUT"
@@ -79,7 +89,7 @@ Extract structured information:
 
 ```bash
 PARSE_OUTPUT_DIR=$(mktemp -d)
-node ${CLAUDE_PLUGIN_ROOT}/skills/study/scripts/parse-pdf.js \
+node ${CLAUDE_PAPER_PLUGIN_ROOT}/skills/study/scripts/parse-pdf.js \
   "$INPUT_PATH" \
   --output-dir "$PARSE_OUTPUT_DIR"
 ```
@@ -189,11 +199,7 @@ Append new entry to the papers array:
 
 # Step 4: Relaunch Web UI
 
-Invoke:
-
-```
-/claude-paper:webui
-```
+Load and follow the `claude-paper-webui` skill.
 
 ---
 
@@ -204,7 +210,7 @@ After generating the summary:
 1. **Show the user the quick-summary.md content** - Display the full summary
 
 2. **Offer next steps:**
-   - "Would you like to study this paper in more depth? Use `/claude-paper:study` for comprehensive materials."
+   - "Would you like to study this paper in more depth? Use `claude-paper-study` skill for comprehensive materials."
    - "Do you have questions about specific parts of the paper?"
    - "Would you like me to explain any section in more detail?"
 
@@ -257,6 +263,6 @@ The Transformer eliminated recurrence, enabling massive parallelization and scal
 # Notes
 
 - This skill is intentionally **minimal** - it generates only the summary, no code demos, no interactive HTML, no deep-dive materials
-- For users who want more, they can use `/claude-paper:study` to generate comprehensive materials
+- For users who want more, they can use `claude-paper-study` skill to generate comprehensive materials
 - The summary should be **self-contained** and readable in under 5 minutes
 - Focus on **conceptual clarity** over technical details

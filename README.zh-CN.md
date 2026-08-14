@@ -7,10 +7,10 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-purple)](https://code.claude.com)
+[![Node Version](https://img.shields.io/badge/node-20.19.x_%7C_22.12%2B-brightgreen)](https://nodejs.org)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-Compatible-purple)](https://agentskills.io)
 
-一个强大的 **Claude Code 插件**，通过智能材料生成、代码演示和交互式网页查看器自动化研究论文学习。
+一个适用于 **Claude Code、Codex、OpenCode 和 DeepSeek Harness** 的论文学习插件。在不同 Agent 中复用同一套学习流程、生成材料、代码演示和交互式网页查看器。
 
 <table>
   <tr>
@@ -31,9 +31,10 @@
 
 ## 功能特性
 
-- **自动 PDF 解析** - 提取标题、作者、摘要和完整内容
-- **智能内容截断** - 智能处理大型论文（50k 字符限制）
+- **自动 PDF 解析** - 提取标题、作者、摘要、链接和完整论文文本
+- **上下文安全预览** - 完整文本保存到 `paper.txt`，元数据仅保留 50k 预览
 - **代码仓库检测** - 自动发现 GitHub、arXiv、CodeOcean 链接
+- **论文快速摘要** - 深度学习前先用 300–500 字的精简概览筛选论文
 - **自适应学习材料** - 根据论文复杂性生成 README、摘要、洞察力、问答
 - **代码演示** - 清晰实现，带 Jupyter 笔记本和原始代码集成
 - **交互式网页查看器** - Nuxt.js 界面，支持数学公式渲染（KaTeX）
@@ -43,31 +44,56 @@
 
 ## 快速开始
 
-### 安装
+### 安装全部支持的 Agent
 
-从 Claude Code 市场安装：
+一条命令安装 Claude Code、Codex、OpenCode 和 DeepSeek Harness，无需克隆仓库：
 
 ```bash
-# 添加市场
-/plugin marketplace add alaliqing/claude-paper
-
-# 安装插件
-/plugin install claude-paper
-
-# 重启 Claude Code 使插件生效
+npx --yes @zlzliqing/claude-paper@latest install
 ```
 
-**就这样！** 插件将自动：
-- 安装所有依赖项（用于 PDF 处理的 pdf-parse）
-- 在 `~/claude-papers/` 创建论文目录
-- 初始化搜索索引
-- 安装网页查看器依赖项
+默认的 `all` target 会覆盖四个 Agent。对于 Claude Code，安装器通过官方 Claude CLI 注册包内 Marketplace，并安装或升级用户级插件；对于其他 Agent，则安装共享 Skill，并在适用时添加 OpenCode 命令。
+
+也可以只安装指定 Agent：
+
+```bash
+npx --yes @zlzliqing/claude-paper@latest install --target claude-code
+npx --yes @zlzliqing/claude-paper@latest install --target codex
+npx --yes @zlzliqing/claude-paper@latest install --target opencode
+npx --yes @zlzliqing/claude-paper@latest install --target deepseek-harness
+```
+
+通过同一正式分发渠道升级已有安装：
+
+```bash
+# 升级全部支持的 Agent
+npx --yes @zlzliqing/claude-paper@latest upgrade
+
+# 继续只升级安装时选择的 Agent
+npx --yes @zlzliqing/claude-paper@latest upgrade --target codex,opencode
+```
+
+升级默认 target 为 `all`。如果已有安装只选择了部分 Agent，升级时请传入相同的 `--target` 列表，避免额外添加其他 Agent 的集成。
+
+npm 包会把包内的插件运行时复制到用户数据目录；选择共享 Skill 宿主时，会把自动生成的兼容 Skill 放到 `~/.agents/skills/`；选择 OpenCode 时还会安装命令包装。只有在论文库不存在时才会初始化 `~/claude-papers/`。安装或升级后请重启对应 Agent。
+
+### 仅使用 Claude Code 的 Marketplace 安装方式
+
+如果只使用 Claude Code，仍然可以直接从它的 Marketplace 安装：
+
+```bash
+/plugin marketplace add alaliqing/claude-paper
+/plugin install claude-paper
+```
+
+Claude Paper 当前通过 Agent Skills 运行，无需单独安装或配置 MCP 服务。
 
 ### 系统要求
 
-- **Node.js**: 18.0.0 或更高版本
+- **Node.js**: 20.19.x，或 22.12.0 及以上版本
 - **npm**: 随 Node.js 一起安装
-- **Claude Code**: 支持插件的最新版本
+- **Agent 宿主**: Claude Code、Codex、OpenCode 或 DeepSeek Harness
+- **Claude Code CLI**: 选择 `all` 或 `claude-code` 时必须已安装
 - **poppler-utils**: 用于 PDF 图像提取（通过系统包管理器安装）
   - **macOS**: `brew install poppler`
   - **Ubuntu/Debian**: `sudo apt-get install poppler-utils`
@@ -77,9 +103,23 @@
 
 ## 使用方法
 
+### 快速总结研究论文
+
+直接让所使用的 Agent 快速总结论文，或使用对应宿主命令：
+
+```bash
+# Claude Code
+/claude-paper:summary /path/to/paper.pdf
+
+# OpenCode
+/claude-paper-summary /path/to/paper.pdf
+```
+
+在 Codex 或 DeepSeek Harness 中，可以直接要求 Agent 快速总结论文，或显式加载 `claude-paper-summary` Skill。该流程会生成 `quick-summary.md`，并把原始 PDF、完整 `paper.txt` 和元数据保存到共享论文库。
+
 ### 学习研究论文
 
-直接与 Claude Code 对话来学习论文：
+直接让所使用的 Agent 学习论文：
 
 ```
 帮我学习 ~/Downloads/attention-is-all-you-need.pdf 这篇论文
@@ -95,7 +135,7 @@
 帮我学习 https://arxiv.org/abs/1706.03762 这篇论文
 ```
 
-Claude 将自动触发学习工作流程并：
+Agent 将自动触发学习工作流程并：
 1. 解析 PDF 并提取元数据
 2. 分析论文复杂性和类型
 3. 生成自适应学习材料
@@ -108,8 +148,14 @@ Claude 将自动触发学习工作流程并：
 ### 启动网页查看器
 
 ```bash
+# Claude Code
 /claude-paper:webui
+
+# OpenCode
+/claude-paper-webui
 ```
+
+在 Codex 或 DeepSeek Harness 中，可以直接要求 Agent 启动 Claude Paper 网页查看器，或显式加载 `claude-paper-webui` Skill。
 
 在 **http://localhost:5815** 打开交互式网页界面，您可以：
 - 浏览所有已学习的论文
@@ -128,7 +174,9 @@ Claude 将自动触发学习工作流程并：
 ├── papers/
 │   └── {paper-slug}/
 │       ├── paper.pdf                     # 原始 PDF 文件
+│       ├── paper.txt                     # 完整提取文本
 │       ├── meta.json                     # 论文元数据（标题、作者等）
+│       ├── quick-summary.md               # 精简筛选摘要（快速流程）
 │       ├── README.md                     # 快速导航和概览
 │       ├── summary.md                    # 详细摘要
 │       ├── insights.md                   # 核心洞察力（最重要！）
@@ -155,17 +203,32 @@ Claude 将自动触发学习工作流程并：
 
 ```
 claude-paper/
+├── package.json                       # npm 正式分发清单
+├── bin/
+│   └── claude-paper.mjs              # npx 安装和升级入口
 ├── .claude-plugin/
-│   └── marketplace.json              # 市场目录条目
+│   └── marketplace.json              # Claude Code 市场目录
+├── .codex-plugin/
+│   └── plugin.json                   # Codex 插件清单
+├── .agents/skills/                   # OpenCode 与 DSH 自动发现入口
+├── .opencode/commands/               # OpenCode 命令包装
+├── skills/                           # Codex 打包 Skill 适配层
+├── scripts/
+│   ├── sync-agent-adapters.mjs       # 确定性适配生成器
+│   └── install-agent-adapters.mjs    # 跨 Agent 安装和升级器
 ├── plugin/
 │   ├── .claude-plugin/
 │   │   └── plugin.json              # 插件清单
 │   ├── skills/
-│   │   └── study/
-│   │       ├── SKILL.md             # 学习工作流程定义
-│   │       └── scripts/
-│   │           ├── parse-pdf.js    # PDF 解析工具
-│   │           └── extract-images.py  # 图像提取
+│   │   ├── study/
+│   │   │   ├── SKILL.md             # 学习工作流程定义
+│   │   │   └── scripts/
+│   │   │       ├── parse-pdf.js    # PDF 解析工具
+│   │   │       └── extract-images.py  # 图像提取
+│   │   ├── summary/
+│   │   │   └── SKILL.md             # 快速摘要工作流程定义
+│   │   └── webui/
+│   │       └── SKILL.md             # 网页查看器工作流程定义
 │   ├── commands/
 │   │   └── webui.md                # /webui 命令
 │   ├── hooks/
@@ -183,11 +246,13 @@ claude-paper/
 
 ### 核心组件
 
-1. **学习技能** - 编排论文处理的主要工作流程代理
-2. **PDF 解析器** - 使用 pdf-parse 提取文本、元数据和代码链接
-3. **图像提取器** - PDF 图表提取的 Python 脚本
-4. **网页查看器** - 带 Nitro API 服务器的 Nuxt.js 应用
-5. **钩子系统** - 自动依赖安装和设置
+1. **学习技能** - 编排论文深度处理的主要工作流程代理
+2. **摘要技能** - 精简的论文筛选工作流程
+3. **PDF 解析器** - 使用 pdf-parse 提取文本、元数据和代码链接
+4. **图像提取器** - PDF 图表提取的 Python 脚本
+5. **网页查看器** - 带 Nitro API 服务器的 Nuxt.js 应用
+6. **钩子系统** - Claude Code 生命周期设置
+7. **Agent 适配层** - 为 Codex、OpenCode 和 DeepSeek Harness 生成发现及调用包装
 
 ---
 
@@ -196,6 +261,12 @@ claude-paper/
 ### 运行测试
 
 ```bash
+# 验证跨 Agent 适配及已审查的 canonical Claude Skills
+npm test
+
+# 验证生成的适配文件保持同步
+npm run check:adapters
+
 # 测试 PDF 解析
 node plugin/skills/study/scripts/parse-pdf.js /path/to/paper.pdf
 
@@ -207,6 +278,13 @@ npm run dev
 cd /path/to/claude-paper
 claude --plugin-dir ./plugin
 /claude-paper:study /path/to/paper.pdf
+```
+
+### 校验 npm 分发包
+
+```bash
+# 生成待发布文件列表前会自动执行适配检查和测试
+npm pack --dry-run
 ```
 
 ### 生产构建
@@ -229,7 +307,7 @@ npm run build
 
 - **论文目录**: `~/claude-papers/`
 - **网页查看器端口**: `5815`
-- **内容限制**: `50,000` 字符（带智能截断）
+- **元数据预览限制**: `50,000` 字符；完整提取文本保存在 `paper.txt`
 
 ### 高级自定义
 

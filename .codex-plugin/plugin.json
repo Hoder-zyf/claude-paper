@@ -1,0 +1,28 @@
+{
+  "name": "claude-paper",
+  "version": "1.2.1",
+  "description": "Study research papers with structured learning materials, code demonstrations, and a local web viewer",
+  "author": {
+    "name": "alaliqing",
+    "url": "https://github.com/alaliqing"
+  },
+  "homepage": "https://github.com/alaliqing/claude-paper",
+  "repository": "https://github.com/alaliqing/claude-paper",
+  "license": "MIT",
+  "keywords": ["research", "papers", "pdf", "learning"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Claude Paper",
+    "shortDescription": "Turn research papers into structured learning environments.",
+    "longDescription": "Study local or remote research papers, generate structured learning materials and code demonstrations, and browse the resulting library in a local web viewer.",
+    "developerName": "alaliqing",
+    "category": "Productivity",
+    "capabilities": ["Research", "Local files", "Interactive viewer"],
+    "websiteURL": "https://github.com/alaliqing/claude-paper",
+    "defaultPrompt": [
+      "Help me study this research paper deeply.",
+      "Give me a quick summary of this research paper.",
+      "Start my Claude Paper web viewer."
+    ]
+  }
+}
